@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>PopRuaJud - Estatísticas | Dashboard</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #F4F1F9;
+            min-height: 100vh;
+            padding: 16px;
+        }
+
+        .dashboard {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #FFFFFF 0%, #F9F5FF 100%);
+            border-radius: 24px;
+            padding: 20px 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(85, 30, 117, 0.08);
+            border: 1px solid rgba(170, 141, 203, 0.2);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #551E75;
+            letter-spacing: -0.3px;
+            margin-bottom: 4px;
+        }
+
+        .header p {
+            font-size: 0.8rem;
+            color: #7A4895;
+            margin-top: 4px;
+        }
+
+        .header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 14px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .refresh-btn {
+            background: #7A4895;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-height: 44px;
+        }
+
+        .refresh-btn:active {
+            transform: scale(0.97);
+            background: #551E75;
+        }
+
+        .last-update {
+            font-size: 0.7rem;
+            color: #A8A4B5;
+            background: #F0EBF8;
+            padding: 6px 12px;
+            border-radius: 30px;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .kpi-card {
+            background: #FFFFFF;
+            border-radius: 20px;
+            padding: 16px 12px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(85, 30, 117, 0.06);
+            border: 1px solid rgba(170, 141, 203, 0.15);
+        }
+
+        .kpi-value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #551E75;
+            line-height: 1.2;
+        }
+
+        .kpi-label {
+            font-size: 0.7rem;
+            color: #7A4895;
+            margin-top: 6px;
+            font-weight: 500;
+        }
+
+        .charts-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .chart-card {
+            background: #FFFFFF;
+            border-radius: 24px;
+            padding: 16px;
+            box-shadow: 0 2px 12px rgba(85, 30, 117, 0.06);
+            border: 1px solid rgba(170, 141, 203, 0.12);
+        }
+
+        .chart-card h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #551E75;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #F0EBF8;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            min-height: 220px;
+        }
+
+        canvas {
+            max-height: 220px;
+            width: 100%;
+        }
+
+        .section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #551E75;
+            margin-bottom: 12px;
+            padding-left: 4px;
+        }
+
+        .questionnaire-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .questionnaire-card {
+            background: #FFFFFF;
+            border-radius: 20px;
+            padding: 14px 10px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(85, 30, 117, 0.06);
+            border: 1px solid rgba(170, 141, 203, 0.12);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .questionnaire-card:active {
+            transform: scale(0.98);
+            background: #F9F5FF;
+        }
+
+        .questionnaire-value {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #551E75;
+        }
+
+        .questionnaire-label {
+            font-size: 0.7rem;
+            color: #7A4895;
+            margin-top: 6px;
+            font-weight: 500;
+        }
+
+        .questionnaire-percent {
+            font-size: 0.65rem;
+            color: #AA8DCB;
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        /* Lista de famílias (expansível) */
+        .families-list {
+            background: #FFFFFF;
+            border-radius: 24px;
+            padding: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 12px rgba(85, 30, 117, 0.06);
+            border: 1px solid rgba(170, 141, 203, 0.12);
+        }
+
+        .families-list h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #551E75;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #F0EBF8;
+        }
+
+        .family-item {
+            background: #F9F5FF;
+            border-radius: 16px;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+
+        .family-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 16px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .family-header:active {
+            background: #F0EBF8;
+        }
+
+        .family-name {
+            font-weight: 600;
+            color: #551E75;
+            font-size: 0.9rem;
+        }
+
+        .family-expand-icon {
+            color: #7A4895;
+            font-size: 1.2rem;
+            transition: transform 0.2s ease;
+        }
+
+        .family-expand-icon.expanded {
+            transform: rotate(180deg);
+        }
+
+        .family-details {
+            display: none;
+            padding: 0 16px 16px 16px;
+            background: #FFFFFF;
+            border-top: 1px solid #E8E2F0;
+        }
+
+        .family-details.show {
+            display: block;
+        }
+
+        .member-detail {
+            margin-top: 12px;
+            padding: 10px;
+            background: #F9F5FF;
+            border-radius: 12px;
+        }
+
+        .member-name {
+            font-weight: 600;
+            color: #7A4895;
+            font-size: 0.8rem;
+            margin-bottom: 6px;
+        }
+
+        .member-services {
+            font-size: 0.7rem;
+            color: #3D2B54;
+            padding-left: 12px;
+        }
+
+        .service-tag {
+            display: inline-block;
+            background: #FFFFFF;
+            padding: 4px 8px;
+            border-radius: 16px;
+            margin: 4px 4px 0 0;
+            font-size: 0.65rem;
+            border: 1px solid #E8E2F0;
+        }
+
+        .empty-list {
+            text-align: center;
+            padding: 24px;
+            color: #A8A4B5;
+            font-size: 0.8rem;
+        }
+
+        .recent-section {
+            background: #FFFFFF;
+            border-radius: 24px;
+            padding: 16px;
+            box-shadow: 0 2px 12px rgba(85, 30, 117, 0.06);
+            border: 1px solid rgba(170, 141, 203, 0.12);
+            margin-bottom: 16px;
+        }
+
+        .recent-section h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #551E75;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #F0EBF8;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px 8px;
+            color: #7A4895;
+            font-weight: 600;
+            background: #F9F5FF;
+        }
+
+        td {
+            padding: 10px 8px;
+            color: #3D2B54;
+            border-bottom: 1px solid #F0EBF8;
+        }
+
+        .loading-container {
+            text-align: center;
+            padding: 48px 20px;
+            background: #FFFFFF;
+            border-radius: 24px;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 36px;
+            height: 36px;
+            border: 3px solid #F0EBF8;
+            border-top: 3px solid #7A4895;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 12px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 20px;
+            background: #FFFFFF;
+            border-radius: 24px;
+            color: #A8A4B5;
+            font-size: 0.85rem;
+        }
+
+        .error-message {
+            background: #FEF2F2;
+            color: #B91C1C;
+            padding: 16px;
+            border-radius: 20px;
+            text-align: center;
+            margin: 20px 0;
+            font-size: 0.85rem;
+            border: 1px solid #FECACA;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 16px 8px;
+            font-size: 0.65rem;
+            color: #A8A4B5;
+            border-top: 1px solid #E8E2F0;
+            margin-top: 8px;
+        }
+
+        @media (max-width: 380px) {
+            body { padding: 12px; }
+            .kpi-grid { gap: 10px; }
+            .kpi-card { padding: 12px 8px; }
+            .kpi-value { font-size: 1.6rem; }
+        }
+
+        @media (min-width: 600px) {
+            body { padding: 20px; }
+            .dashboard { max-width: 700px; margin: 0 auto; }
+            .kpi-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; }
+            .charts-grid { flex-direction: row; gap: 16px; }
+            .charts-grid .chart-card { flex: 1; }
+            .questionnaire-grid { grid-template-columns: repeat(5, 1fr); gap: 16px; }
+        }
+
+        @media (min-width: 900px) {
+            .dashboard { max-width: 1100px; }
+            .kpi-grid { grid-template-columns: repeat(5, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h1>PopRuaJud</h1>
+            <p>Mulheres Guerreiras · Estatísticas</p>
+            <div class="header-actions">
+                <button class="refresh-btn" onclick="loadAllData()">Atualizar dados</button>
+                <span class="last-update" id="lastUpdate">Carregando...</span>
+            </div>
+        </div>
+
+        <div id="dashboardContent">
+            <div class="loading-container">
+                <div class="spinner"></div>
+                <p>Carregando estatísticas...</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            Clique nos indicadores para ver as famílias | Dados atualizados a cada 5 minutos
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://gbuibkhkiriclnztlgxp.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdidWlia2hraXJpY2xuenRsZ3hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NjgxNDksImV4cCI6MjA5NDM0NDE0OX0.e_3H4G97r3jw3Xp8R1vkLSp4Y9YrIrbRxAaSoc7GP-w';
+        
+        let charts = { organs: null, services: null };
+        let autoUpdateInterval = null;
+        
+        // Dados globais para usar nos cliques
+        let globalData = {
+            mothers: [],
+            children: [],
+            finishedAttendances: [],
+            finishedItems: [],
+            questionnaires: [],
+            allServices: []
+        };
+
+        async function fetchFromSupabase(table, select = '*', filter = '') {
+            try {
+                let url = `${SUPABASE_URL}/rest/v1/${table}?select=${select}`;
+                if (filter) url += `&${filter}`;
+                const response = await fetch(url, {
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                    }
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return await response.json();
+            } catch (error) {
+                console.error(`Erro em ${table}:`, error);
+                return [];
+            }
+        }
+
+        async function loadAllData() {
+            document.getElementById('dashboardContent').innerHTML = `
+                <div class="loading-container">
+                    <div class="spinner"></div>
+                    <p>Carregando estatísticas...</p>
+                </div>
+            `;
+            
+            try {
+                const [mothers, children, attendances, attendanceItems, questionnaires, organs, services] = await Promise.all([
+                    fetchFromSupabase('mothers'),
+                    fetchFromSupabase('children'),
+                    fetchFromSupabase('attendances'),
+                    fetchFromSupabase('attendance_items', '*, organs(name), services(name)'),
+                    fetchFromSupabase('questionnaires'),
+                    fetchFromSupabase('organs'),
+                    fetchFromSupabase('services')
+                ]);
+                
+                // Filtrar APENAS atendimentos finalizados
+                const finishedAttendances = attendances.filter(a => a.is_finished === true);
+                const finishedIds = new Set(finishedAttendances.map(a => a.id));
+                const mothersWithFinishedAttendance = new Set(finishedAttendances.map(a => a.mother_id));
+                
+                // Filtrar questionários APENAS de mães com atendimento finalizado
+                const relevantQuestionnaires = questionnaires.filter(q => mothersWithFinishedAttendance.has(q.mother_id));
+                
+                // Filtrar items de serviço APENAS de atendimentos finalizados
+                const finishedItems = attendanceItems.filter(item => finishedIds.has(item.attendance_id));
+                
+                // Buscar serviços para cada item
+                const allServices = await fetchFromSupabase('services');
+                
+                // Guardar dados globais
+                globalData = {
+                    mothers,
+                    children,
+                    finishedAttendances,
+                    finishedItems,
+                    questionnaires: relevantQuestionnaires,
+                    allServices,
+                    organs
+                };
+                
+                const stats = calculateStats(mothers, children, finishedAttendances, finishedItems, relevantQuestionnaires, organs, services);
+                
+                renderDashboard(stats, mothers, finishedAttendances, finishedItems, relevantQuestionnaires);
+                
+                const now = new Date();
+                const formattedTime = now.toLocaleString('pt-BR');
+                document.getElementById('lastUpdate').innerHTML = `Atualizado ${formattedTime}`;
+                
+            } catch (error) {
+                console.error(error);
+                document.getElementById('dashboardContent').innerHTML = `
+                    <div class="error-message">
+                        Erro ao carregar os dados.<br>
+                        <button class="refresh-btn" style="margin-top:12px" onclick="loadAllData()">Tentar novamente</button>
+                    </div>
+                `;
+            }
+        }
+        
+        function calculateStats(mothers, children, finishedAttendances, finishedItems, questionnaires, organs, services) {
+            const totalMothers = mothers.length;
+            const totalChildren = children.length;
+            const totalAttendances = finishedAttendances.length;
+            const totalOrgans = organs.length;
+            const totalServices = services.length;
+            
+            const organCount = {};
+            const serviceCount = {};
+            
+            finishedItems.forEach(item => {
+                const organName = item.organs?.name || item.organ_name || 'Outro';
+                const serviceName = item.services?.name || item.service_name || 'Outro';
+                organCount[organName] = (organCount[organName] || 0) + 1;
+                serviceCount[serviceName] = (serviceCount[serviceName] || 0) + 1;
+            });
+            
+            const topOrgans = Object.entries(organCount).sort((a, b) => b[1] - a[1]).slice(0, 8);
+            const topServices = Object.entries(serviceCount).sort((a, b) => b[1] - a[1]).slice(0, 8);
+            
+            let homeless = 0, domesticViolence = 0, protectiveMeasure = 0, childrenSchool = 0, seriousIllness = 0;
+            
+            questionnaires.forEach(q => {
+                if (q.homeless) homeless++;
+                if (q.domestic_violence) domesticViolence++;
+                if (q.protective_measure) protectiveMeasure++;
+                if (q.children_school) childrenSchool++;
+                if (q.serious_illness) seriousIllness++;
+            });
+            
+            return {
+                totalMothers, totalChildren, totalAttendances, totalOrgans, totalServices,
+                topOrgans, topServices,
+                questionnaire: {
+                    total: questionnaires.length,
+                    homeless, domesticViolence, protectiveMeasure, childrenSchool, seriousIllness
+                }
+            };
+        }
+        
+        function renderDashboard(stats, mothers, finishedAttendances, finishedItems, questionnaires) {
+            const hasData = stats.totalAttendances > 0;
+            const q = stats.questionnaire;
+            const percent = (count) => q.total > 0 ? Math.round((count / q.total) * 100) : 0;
+            
+            let html = `
+                <div class="kpi-grid">
+                    <div class="kpi-card"><div class="kpi-value">${stats.totalMothers}</div><div class="kpi-label">Mães cadastradas</div></div>
+                    <div class="kpi-card"><div class="kpi-value">${stats.totalChildren}</div><div class="kpi-label">Filhos cadastrados</div></div>
+                    <div class="kpi-card"><div class="kpi-value">${stats.totalAttendances}</div><div class="kpi-label">Atendimentos finalizados</div></div>
+                    <div class="kpi-card"><div class="kpi-value">${stats.totalOrgans}</div><div class="kpi-label">Órgãos parceiros</div></div>
+                    <div class="kpi-card"><div class="kpi-value">${stats.totalServices}</div><div class="kpi-label">Serviços disponíveis</div></div>
+                </div>
+            `;
+            
+            if (!hasData) {
+                html += `<div class="empty-state">Nenhum atendimento finalizado ainda.</div>`;
+                document.getElementById('dashboardContent').innerHTML = html;
+                return;
+            }
+            
+            html += `
+                <div class="charts-grid">
+                    <div class="chart-card"><h3>Órgãos mais solicitados</h3><div class="chart-container"><canvas id="organsChart"></canvas></div></div>
+                    <div class="chart-card"><h3>Serviços mais solicitados</h3><div class="chart-container"><canvas id="servicesChart"></canvas></div></div>
+                </div>
+                
+                <div class="section-title">Indicadores de acolhimento (clique para ver as famílias)</div>
+                <div class="questionnaire-grid">
+                    <div class="questionnaire-card" onclick="showFamiliesByQuestionnaire('homeless')">
+                        <div class="questionnaire-value">${q.homeless}</div>
+                        <div class="questionnaire-label">Situação de rua</div>
+                        <div class="questionnaire-percent">${percent(q.homeless)}%</div>
+                    </div>
+                    <div class="questionnaire-card" onclick="showFamiliesByQuestionnaire('domestic_violence')">
+                        <div class="questionnaire-value">${q.domesticViolence}</div>
+                        <div class="questionnaire-label">Violência doméstica</div>
+                        <div class="questionnaire-percent">${percent(q.domesticViolence)}%</div>
+                    </div>
+                    <div class="questionnaire-card" onclick="showFamiliesByQuestionnaire('protective_measure')">
+                        <div class="questionnaire-value">${q.protectiveMeasure}</div>
+                        <div class="questionnaire-label">Medida protetiva</div>
+                        <div class="questionnaire-percent">${percent(q.protectiveMeasure)}%</div>
+                    </div>
+                    <div class="questionnaire-card" onclick="showFamiliesByQuestionnaire('children_school')">
+                        <div class="questionnaire-value">${q.childrenSchool}</div>
+                        <div class="questionnaire-label">Filhos na escola</div>
+                        <div class="questionnaire-percent">${percent(q.childrenSchool)}%</div>
+                    </div>
+                    <div class="questionnaire-card" onclick="showFamiliesByQuestionnaire('serious_illness')">
+                        <div class="questionnaire-value">${q.seriousIllness}</div>
+                        <div class="questionnaire-label">Doença grave</div>
+                        <div class="questionnaire-percent">${percent(q.seriousIllness)}%</div>
+                    </div>
+                </div>
+                
+                <div id="familiesListContainer"></div>
+            `;
+            
+            // Últimos atendimentos
+            const recentAttendances = [...finishedAttendances]
+                .sort((a, b) => new Date(b.finished_at || b.created_at) - new Date(a.finished_at || a.created_at))
+                .slice(0, 8);
+            
+            if (recentAttendances.length > 0) {
+                html += `<div class="recent-section"><h3>Últimos atendimentos</h3><div class="table-wrapper"><table><thead><tr><th>Mãe</th><th>Data</th><th>Serviços</th></tr></thead><tbody>`;
+                for (const att of recentAttendances) {
+                    const mother = mothers.find(m => m.id === att.mother_id);
+                    const motherName = mother?.name || 'Não identificada';
+                    const date = att.finished_at ? new Date(att.finished_at).toLocaleDateString('pt-BR') : (att.created_at ? new Date(att.created_at).toLocaleDateString('pt-BR') : '--');
+                    const itemsCount = finishedItems.filter(i => i.attendance_id === att.id).length;
+                    html += `<tr><td>${escapeHtml(motherName)}</td><td>${date}</td><td>${itemsCount} serviço(s)</td></tr>`;
+                }
+                html += `</tbody></table></div></div>`;
+            }
+            
+            document.getElementById('dashboardContent').innerHTML = html;
+            
+            setTimeout(() => {
+                renderCharts(stats.topOrgans, stats.topServices);
+            }, 50);
+        }
+        
+        function renderCharts(topOrgans, topServices) {
+            if (charts.organs) charts.organs.destroy();
+            if (charts.services) charts.services.destroy();
+            
+            const organsCtx = document.getElementById('organsChart')?.getContext('2d');
+            const servicesCtx = document.getElementById('servicesChart')?.getContext('2d');
+            
+            if (organsCtx && topOrgans.length > 0) {
+                charts.organs = new Chart(organsCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: topOrgans.map(o => o[0].length > 18 ? o[0].substring(0, 15) + '...' : o[0]),
+                        datasets: [{ label: 'Solicitações', data: topOrgans.map(o => o[1]), backgroundColor: '#AA8DCB', borderRadius: 6, barPercentage: 0.7 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true }, x: { ticks: { font: { size: 9 } } } } }
+                });
+            }
+            
+            if (servicesCtx && topServices.length > 0) {
+                charts.services = new Chart(servicesCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: topServices.map(s => s[0].length > 18 ? s[0].substring(0, 15) + '...' : s[0]),
+                        datasets: [{ label: 'Solicitações', data: topServices.map(s => s[1]), backgroundColor: '#E86DA8', borderRadius: 6, barPercentage: 0.7 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true }, x: { ticks: { font: { size: 9 } } } } }
+                });
+            }
+        }
+        
+        // Função para mostrar famílias por indicador do questionário
+        window.showFamiliesByQuestionnaire = function(field) {
+            const { mothers, children, finishedAttendances, finishedItems, questionnaires, allServices } = globalData;
+            
+            // Mapear mães para seus questionários
+            const motherQuestionnaire = {};
+            questionnaires.forEach(q => { motherQuestionnaire[q.mother_id] = q; });
+            
+            // Filtrar mães que têm o campo marcado
+            const filteredMothers = mothers.filter(m => {
+                const q = motherQuestionnaire[m.id];
+                return q && q[field] === true;
+            });
+            
+            if (filteredMothers.length === 0) {
+                document.getElementById('familiesListContainer').innerHTML = `<div class="empty-list">Nenhuma família com este indicador.</div>`;
+                return;
+            }
+            
+            // Construir lista de famílias expansíveis
+            let html = `<div class="families-list"><h3>Famílias - ${getFieldLabel(field)}</h3>`;
+            
+            for (const mother of filteredMothers) {
+                const motherChildren = children.filter(c => c.mother_id === mother.id);
+                const attendance = finishedAttendances.find(a => a.mother_id === mother.id);
+                const motherItems = finishedItems.filter(i => i.attendance_id === attendance?.id && i.family_member_type === 'mother');
+                const childrenItems = finishedItems.filter(i => i.attendance_id === attendance?.id && i.family_member_type === 'child');
+                
+                const familyId = `family_${mother.id}`;
+                html += `
+                    <div class="family-item">
+                        <div class="family-header" onclick="toggleFamily('${familyId}')">
+                            <span class="family-name">👩 ${escapeHtml(mother.name)}</span>
+                            <span class="family-expand-icon" id="${familyId}_icon">▼</span>
+                        </div>
+                        <div class="family-details" id="${familyId}">
+                `;
+                
+                // Mãe
+                html += `<div class="member-detail"><div class="member-name">Mãe - Serviços solicitados</div><div class="member-services">`;
+                if (motherItems.length === 0) html += `<span>Nenhum serviço registrado</span>`;
+                else motherItems.forEach(item => { html += `<span class="service-tag">${item.organs?.name || item.organ_name}: ${item.services?.name || item.service_name}</span>`; });
+                html += `</div></div>`;
+                
+                // Filhos
+                for (const child of motherChildren) {
+                    const childServiceItems = childrenItems.filter(i => i.family_member_id === child.id);
+                    html += `<div class="member-detail"><div class="member-name">👶 ${escapeHtml(child.name)} ${child.age ? `(${child.age} anos)` : ''}</div><div class="member-services">`;
+                    if (childServiceItems.length === 0) html += `<span>Nenhum serviço registrado</span>`;
+                    else childServiceItems.forEach(item => { html += `<span class="service-tag">${item.organs?.name || item.organ_name}: ${item.services?.name || item.service_name}</span>`; });
+                    html += `</div></div>`;
+                }
+                
+                html += `</div></div>`;
+            }
+            
+            html += `</div>`;
+            document.getElementById('familiesListContainer').innerHTML = html;
+            
+            // Rolar até a lista
+            document.getElementById('familiesListContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
+        
+        window.toggleFamily = function(familyId) {
+            const details = document.getElementById(familyId);
+            const icon = document.getElementById(familyId + '_icon');
+            if (details) {
+                details.classList.toggle('show');
+                if (icon) icon.classList.toggle('expanded');
+            }
+        };
+        
+        function getFieldLabel(field) {
+            const labels = {
+                'homeless': 'Situação de rua',
+                'domestic_violence': 'Violência doméstica',
+                'protective_measure': 'Medida protetiva',
+                'children_school': 'Filhos na escola',
+                'serious_illness': 'Doença grave'
+            };
+            return labels[field] || field;
+        }
+        
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+        
+        function startAutoUpdate() {
+            if (autoUpdateInterval) clearInterval(autoUpdateInterval);
+            autoUpdateInterval = setInterval(() => { loadAllData(); }, 5 * 60 * 1000);
+        }
+        
+        loadAllData();
+        startAutoUpdate();
+    </script>
+</body>
+</html>
