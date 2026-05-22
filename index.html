@@ -200,7 +200,6 @@
             font-weight: 500;
         }
 
-        /* Lista de famílias (expansível) */
         .families-list {
             background: #FFFFFF;
             border-radius: 24px;
@@ -345,6 +344,90 @@
             border-bottom: 1px solid #F0EBF8;
         }
 
+        .organs-services-list {
+            background: #FFFFFF;
+            border-radius: 24px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 12px rgba(85, 30, 117, 0.06);
+            border: 1px solid rgba(170, 141, 203, 0.12);
+        }
+
+        .organs-services-list h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #551E75;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #F0EBF8;
+        }
+
+        .organ-group {
+            margin-bottom: 20px;
+            border-left: 3px solid #AA8DCB;
+            padding-left: 12px;
+        }
+
+        .organ-name {
+            font-weight: 700;
+            color: #551E75;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .organ-count {
+            background: #F0EBF8;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            color: #7A4895;
+            font-weight: 500;
+        }
+
+        .services-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-left: 8px;
+        }
+
+        .service-item {
+            background: #F9F5FF;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            color: #3D2B54;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .service-name {
+            font-weight: 500;
+        }
+
+        .service-count {
+            background: #E8E2F0;
+            padding: 2px 8px;
+            border-radius: 16px;
+            font-size: 0.6rem;
+            color: #7A4895;
+            font-weight: 600;
+        }
+
+        .no-data-list {
+            text-align: center;
+            padding: 24px;
+            color: #A8A4B5;
+            font-size: 0.8rem;
+        }
+
         .loading-container {
             text-align: center;
             padding: 48px 20px;
@@ -403,6 +486,7 @@
             .kpi-grid { gap: 10px; }
             .kpi-card { padding: 12px 8px; }
             .kpi-value { font-size: 1.6rem; }
+            .organ-name { flex-direction: column; align-items: flex-start; }
         }
 
         @media (min-width: 600px) {
@@ -450,14 +534,14 @@
         let charts = { organs: null, services: null };
         let autoUpdateInterval = null;
         
-        // Dados globais para usar nos cliques
         let globalData = {
             mothers: [],
             children: [],
             finishedAttendances: [],
             finishedItems: [],
             questionnaires: [],
-            allServices: []
+            allServices: [],
+            organs: []
         };
 
         async function fetchFromSupabase(table, select = '*', filter = '') {
@@ -497,28 +581,19 @@
                     fetchFromSupabase('services')
                 ]);
                 
-                // Filtrar APENAS atendimentos finalizados
                 const finishedAttendances = attendances.filter(a => a.is_finished === true);
                 const finishedIds = new Set(finishedAttendances.map(a => a.id));
                 const mothersWithFinishedAttendance = new Set(finishedAttendances.map(a => a.mother_id));
-                
-                // Filtrar questionários APENAS de mães com atendimento finalizado
                 const relevantQuestionnaires = questionnaires.filter(q => mothersWithFinishedAttendance.has(q.mother_id));
-                
-                // Filtrar items de serviço APENAS de atendimentos finalizados
                 const finishedItems = attendanceItems.filter(item => finishedIds.has(item.attendance_id));
                 
-                // Buscar serviços para cada item
-                const allServices = await fetchFromSupabase('services');
-                
-                // Guardar dados globais
                 globalData = {
                     mothers,
                     children,
                     finishedAttendances,
                     finishedItems,
                     questionnaires: relevantQuestionnaires,
-                    allServices,
+                    allServices: services,
                     organs
                 };
                 
@@ -550,12 +625,17 @@
             
             const organCount = {};
             const serviceCount = {};
+            const servicesByOrgan = {};
             
             finishedItems.forEach(item => {
                 const organName = item.organs?.name || item.organ_name || 'Outro';
                 const serviceName = item.services?.name || item.service_name || 'Outro';
+                
                 organCount[organName] = (organCount[organName] || 0) + 1;
                 serviceCount[serviceName] = (serviceCount[serviceName] || 0) + 1;
+                
+                if (!servicesByOrgan[organName]) servicesByOrgan[organName] = {};
+                servicesByOrgan[organName][serviceName] = (servicesByOrgan[organName][serviceName] || 0) + 1;
             });
             
             const topOrgans = Object.entries(organCount).sort((a, b) => b[1] - a[1]).slice(0, 8);
@@ -577,7 +657,10 @@
                 questionnaire: {
                     total: questionnaires.length,
                     homeless, domesticViolence, protectiveMeasure, childrenSchool, seriousIllness
-                }
+                },
+                organCount,
+                serviceCount,
+                servicesByOrgan
             };
         }
         
@@ -640,21 +723,24 @@
                 <div id="familiesListContainer"></div>
             `;
             
+            // Lista de órgãos e serviços solicitados (corrigida)
+            html += renderOrgansServicesList(stats.servicesByOrgan, stats.organCount);
+            
             // Últimos atendimentos
             const recentAttendances = [...finishedAttendances]
                 .sort((a, b) => new Date(b.finished_at || b.created_at) - new Date(a.finished_at || a.created_at))
                 .slice(0, 8);
             
             if (recentAttendances.length > 0) {
-                html += `<div class="recent-section"><h3>Últimos atendimentos</h3><div class="table-wrapper"><table><thead><tr><th>Mãe</th><th>Data</th><th>Serviços</th></tr></thead><tbody>`;
+                html += `<div class="recent-section"><h3>Últimos atendimentos</h3><div class="table-wrapper"> <table> <thead> <tr> <th>Mãe</th> <th>Data</th> <th>Serviços</th> </tr> </thead> <tbody>`;
                 for (const att of recentAttendances) {
                     const mother = mothers.find(m => m.id === att.mother_id);
                     const motherName = mother?.name || 'Não identificada';
                     const date = att.finished_at ? new Date(att.finished_at).toLocaleDateString('pt-BR') : (att.created_at ? new Date(att.created_at).toLocaleDateString('pt-BR') : '--');
                     const itemsCount = finishedItems.filter(i => i.attendance_id === att.id).length;
-                    html += `<tr><td>${escapeHtml(motherName)}</td><td>${date}</td><td>${itemsCount} serviço(s)</td></tr>`;
+                    html += `<tr> <td style="font-weight:500;">${escapeHtml(motherName)}</td> <td>${date}</td> <td>${itemsCount} serviço(s)</td> </tr>`;
                 }
-                html += `</tbody></table></div></div>`;
+                html += `</tbody> </table> </div></div>`;
             }
             
             document.getElementById('dashboardContent').innerHTML = html;
@@ -662,6 +748,49 @@
             setTimeout(() => {
                 renderCharts(stats.topOrgans, stats.topServices);
             }, 50);
+        }
+        
+        function renderOrgansServicesList(servicesByOrgan, organCount) {
+            if (Object.keys(organCount).length === 0) {
+                return `<div class="organs-services-list"><h3>Órgãos e serviços solicitados</h3><div class="no-data-list">Nenhum serviço solicitado ainda.</div></div>`;
+            }
+            
+            let html = `<div class="organs-services-list"><h3>Órgãos e serviços solicitados</h3>`;
+            
+            // Ordenar órgãos por total de solicitações
+            const sortedOrgans = Object.entries(organCount).sort((a, b) => b[1] - a[1]);
+            
+            for (const [organName, totalCount] of sortedOrgans) {
+                const organServices = servicesByOrgan[organName] || {};
+                const sortedServices = Object.entries(organServices).sort((a, b) => b[1] - a[1]);
+                
+                html += `
+                    <div class="organ-group">
+                        <div class="organ-name">
+                            <span>${escapeHtml(organName)}</span>
+                            <span class="organ-count">${totalCount} solicitação(ões)</span>
+                        </div>
+                        <div class="services-list">
+                `;
+                
+                if (sortedServices.length === 0) {
+                    html += `<span class="service-item">Sem serviços detalhados</span>`;
+                } else {
+                    for (const [serviceName, serviceCountVal] of sortedServices) {
+                        html += `
+                            <div class="service-item">
+                                <span class="service-name">${escapeHtml(serviceName)}</span>
+                                <span class="service-count">${serviceCountVal}</span>
+                            </div>
+                        `;
+                    }
+                }
+                
+                html += `</div></div>`;
+            }
+            
+            html += `</div>`;
+            return html;
         }
         
         function renderCharts(topOrgans, topServices) {
@@ -694,15 +823,12 @@
             }
         }
         
-        // Função para mostrar famílias por indicador do questionário
         window.showFamiliesByQuestionnaire = function(field) {
-            const { mothers, children, finishedAttendances, finishedItems, questionnaires, allServices } = globalData;
+            const { mothers, children, finishedAttendances, finishedItems, questionnaires } = globalData;
             
-            // Mapear mães para seus questionários
             const motherQuestionnaire = {};
             questionnaires.forEach(q => { motherQuestionnaire[q.mother_id] = q; });
             
-            // Filtrar mães que têm o campo marcado
             const filteredMothers = mothers.filter(m => {
                 const q = motherQuestionnaire[m.id];
                 return q && q[field] === true;
@@ -713,7 +839,6 @@
                 return;
             }
             
-            // Construir lista de famílias expansíveis
             let html = `<div class="families-list"><h3>Famílias - ${getFieldLabel(field)}</h3>`;
             
             for (const mother of filteredMothers) {
@@ -732,18 +857,16 @@
                         <div class="family-details" id="${familyId}">
                 `;
                 
-                // Mãe
                 html += `<div class="member-detail"><div class="member-name">Mãe - Serviços solicitados</div><div class="member-services">`;
                 if (motherItems.length === 0) html += `<span>Nenhum serviço registrado</span>`;
-                else motherItems.forEach(item => { html += `<span class="service-tag">${item.organs?.name || item.organ_name}: ${item.services?.name || item.service_name}</span>`; });
+                else motherItems.forEach(item => { html += `<span class="service-tag">${escapeHtml(item.organs?.name || item.organ_name)}: ${escapeHtml(item.services?.name || item.service_name)}</span>`; });
                 html += `</div></div>`;
                 
-                // Filhos
                 for (const child of motherChildren) {
                     const childServiceItems = childrenItems.filter(i => i.family_member_id === child.id);
                     html += `<div class="member-detail"><div class="member-name">👶 ${escapeHtml(child.name)} ${child.age ? `(${child.age} anos)` : ''}</div><div class="member-services">`;
                     if (childServiceItems.length === 0) html += `<span>Nenhum serviço registrado</span>`;
-                    else childServiceItems.forEach(item => { html += `<span class="service-tag">${item.organs?.name || item.organ_name}: ${item.services?.name || item.service_name}</span>`; });
+                    else childServiceItems.forEach(item => { html += `<span class="service-tag">${escapeHtml(item.organs?.name || item.organ_name)}: ${escapeHtml(item.services?.name || item.service_name)}</span>`; });
                     html += `</div></div>`;
                 }
                 
@@ -752,8 +875,6 @@
             
             html += `</div>`;
             document.getElementById('familiesListContainer').innerHTML = html;
-            
-            // Rolar até a lista
             document.getElementById('familiesListContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
         };
         
